@@ -18,6 +18,8 @@ const ReferralUserInfoSchema = new mongoose.Schema({
   resume_url: String,
   other_url: String,
   skills: [String],
+  visibility: { type: String, enum: ['seeking', 'offering', 'both'], required: true },
+  discardedProfiles: [{ type: mongoose.Schema.Types.ObjectId, ref: 'ReferralUserInfo' }]
 }, { timestamps: true });
 
 module.exports = mongoose.model('ReferralUserInfo', ReferralUserInfoSchema);

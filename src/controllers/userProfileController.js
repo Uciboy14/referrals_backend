@@ -1,79 +1,220 @@
 // controllers/userProfileController.js
-const ReferralUserInfo = require('../models/ReferralUserInfo');
-const ProfessionalExperience = require('../models/ProfessionalExperience');
-const ActionUserProfile = require('../models/ActionUserProfile');
+const UserProfile = require("../models/ReferralUserInfo");
 
-// Fetch profiles for user feed
-exports.getProfilesForFeed = async (req, res) => {
+exports.createProfile = async (req, res, next) => {
   try {
-    const uid = req.user.id;
+    // Validate input data
+    const {
+      full_name,
+      email,
+      headline,
+      about,
+      age,
+      years_of_exp,
+      phone_number,
+      country,
+      city,
+      education_id,
+      github_url,
+      portfolio_url,
+      linkedin_url,
+      resume_url,
+      other_url,
+      skills,
+      visibility
+    } = req.body;
 
-    const actionProfiles = await ActionUserProfile.find({ by_uid: uid }).select('to_uid').lean();
-    const excludedIds = actionProfiles.map(profile => profile.to_uid);
+    // Check required fields
+    if (!full_name || !email || !visibility) {
+      return res.status(400).json({ message: "Required fields are missing" });
+    }
 
-    const userProfiles = await ReferralUserInfo.find({ _id: { $nin: excludedIds } });
-    res.json(userProfiles);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching profiles for feed', error });
+    // Create a new profile
+    const newProfile = new UserProfile({
+      full_name,
+      email,
+      headline,
+      about,
+      age,
+      years_of_exp,
+      phone_number,
+      country,
+      city,
+      education_id,
+      github_url,
+      portfolio_url,
+      linkedin_url,
+      resume_url,
+      other_url,
+      skills,
+      visibility
+    });
+
+    // Save the profile to the database
+    const savedProfile = await newProfile.save();
+
+    res.status(201).json(savedProfile);
+  } catch (err) {
+    next(err);
   }
 };
 
-// Fetch profiles by experience and field
-exports.getProfilesByExperienceAndField = async (req, res) => {
+
+exports.updateProfile = async (req, res, next) => {
   try {
-    const { experienceFilter, fieldFilter } = req.query;
+    if (!req.user || !req.user.id) {
+      const error = new Error("User ID is missing");
+      error.status = 400; // Bad Request
+      return next(error); // Pass the error to the error handling middleware
+    }
 
-    const experienceProfiles = await ProfessionalExperience.find({
-      years_of_exp: experienceFilter,
-      field_of_study: fieldFilter
-    }).select('uid').lean();
+    const userId = req.user.id;
+    const profileData = req.body; // Ensure profileData is from request body
 
-    const userIds = experienceProfiles.map(profile => profile.uid);
-    const userProfiles = await ReferralUserInfo.find({ _id: { $in: userIds } });
-
-    res.json(userProfiles);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching profiles', error });
-  }
-};
-
-// Handle user swipe
-exports.handleSwipe = async (req, res) => {
-  try {
-    const { toUid, isInterested, isRejected } = req.body;
-    const byUid = req.user.id;
-
-    const action = await ActionUserProfile.findOneAndUpdate(
-      { by_uid: byUid, to_uid: toUid },
-      {
-        is_interested: isInterested,
-        is_rejected: isRejected,
-        end_date: new Date(),
-      },
-      { upsert: true, new: true }
+    // Update profile in the database
+    const updatedProfile = await UserProfile.findOneAndUpdate(
+      { user: userId },
+      { $set: profileData },
+      { new: true, upsert: true }
     );
 
-    res.json(action);
-  } catch (error) {
-    res.status(500).json({ message: 'Error handling swipe', error });
+    if (!updatedProfile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    res.status(200).json(updatedProfile);
+  } catch (err) {
+    // Pass any other errors to the error handling middleware
+    res.status(500).json({ message: "Error updating profile", error });
+    next(err);
   }
 };
 
-// Fetch interested profiles
-exports.getInterestedProfiles = async (req, res) => {
+exports.getProfileDetails = async (req, res, next) => {
   try {
-    const uid = req.user.id;
+    if (!req.user || !req.user.id) {
+      const error = new Error("User ID is missing");
+      error.status = 400; // Bad Request
+      return next(error); // Pass the error to the error handling middleware
+    }
 
-    const interestedProfiles = await ActionUserProfile.find({
-      by_uid: uid,
-      is_interested: true
-    }).select('to_uid').lean();
+    const userId = req.user.id;
+    // Fetch profile details from the database
+    const profile = await UserProfile.findOne({ user: userId });
 
-    const userIds = interestedProfiles.map(profile => profile.to_uid);
-    const userProfiles = await ReferralUserInfo.find({ _id: { $in: userIds } });
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
 
-    res.json(userProfiles);
+    res.status(200).json(profile);
+  } catch (err) {
+    // Pass any other errors to the error handling middleware
+    res.status(500).json({ message: "Error fetching profile details", error });
+    next(err);
+  }
+};
+
+exports.updateVisibility = async (req, res) => {
+  const userId = req.user.id;
+  const { visibility } = req.body;
+
+  try {
+    const profile = await UserProfile.findOne({ user: userId });
+
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    // Ensure all required fields are filled before making the profile visible
+    if (visibility && !profile.full_name) {
+      return res.status(400).json({
+        message:
+          "All required fields must be filled before making the profile visible",
+      });
+    }
+
+    profile.visibility = visibility;
+    await profile.save();
+
+    res
+      .status(200)
+      .json({ message: "Visibility updated successfully", visibility });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching interested profiles', error });
+    res.status(500).json({ message: "Error updating visibility", error });
+  }
+};
+
+exports.getVisibilityStatus = async (req, res) => {
+  const userId = req.user.id;
+
+  try {
+    const profile = await UserProfile.findOne({ user: userId });
+
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    res.status(200).json({ visibility: profile.visibility });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: "Error fetching visibility status", error });
+  }
+};
+
+exports.getProfiles = async (req, res) => {
+  const { visibility, experience, skills } = req.query;
+
+  try {
+    const query = {
+      visibility: visibility || { $exists: true },
+      ...(experience && { years_of_exp: experience }),
+      ...(skills && { skills: { $in: skills.split(",") } }),
+    };
+
+    const profiles = await UserProfile.find(query);
+
+    res.status(200).json(profiles);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching profiles", error });
+  }
+};
+
+exports.getProfileById = async (req, res) => {
+  const profileId = req.params.id;
+
+  try {
+    const profile = await UserProfile.findById(profileId);
+
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    // Filter the response based on visibility or category
+    res.status(200).json(profile);
+  } catch (error) {
+    res.status(500).json({ message: "Error fetching profile by ID", error });
+  }
+};
+
+exports.discardProfile = async (req, res) => {
+  const userId = req.user.id;
+  const profileId = req.params.id;
+
+  try {
+    const profile = await UserProfile.findOne({ user: userId });
+
+    if (!profile) {
+      return res.status(404).json({ message: "Profile not found" });
+    }
+
+    if (!profile.discardedProfiles.includes(profileId)) {
+      profile.discardedProfiles.push(profileId);
+      await profile.save();
+    }
+
+    res.status(200).json({ message: "Profile discarded successfully" });
+  } catch (error) {
+    res.status(500).json({ message: "Error discarding profile", error });
   }
 };
