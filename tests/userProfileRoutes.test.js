@@ -1,14 +1,14 @@
-const request = require('supertest');
-const chai = require('chai');
-const express = require('express');
-const userProfileRoutes = require('../src/routes/userProfileRoutes');
+import request from 'supertest';
+import { expect as _expect } from 'chai';
+import express, { json } from 'express';
+import userProfileRoutes from '../src/routes/userProfileRoutes';
 
 const app = express();
-const expect = chai.expect;
+const expect = _expect;
 
 
 // Middleware setup
-app.use(express.json());
+app.use(json());
 app.use('/api', userProfileRoutes);
 
 describe('User Profile API Routes', () => {

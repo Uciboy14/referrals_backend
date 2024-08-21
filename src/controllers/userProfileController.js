@@ -1,6 +1,7 @@
 // controllers/userProfileController.js
 const UserProfile = require("../models/ReferralUserInfo");
 
+
 exports.createProfile = async (req, res, next) => {
   try {
     // Validate input data
@@ -21,7 +22,7 @@ exports.createProfile = async (req, res, next) => {
       resume_url,
       other_url,
       skills,
-      visibility
+      visibility,
     } = req.body;
 
     // Check required fields
@@ -47,7 +48,7 @@ exports.createProfile = async (req, res, next) => {
       resume_url,
       other_url,
       skills,
-      visibility
+      visibility,
     });
 
     // Save the profile to the database
@@ -58,7 +59,6 @@ exports.createProfile = async (req, res, next) => {
     next(err);
   }
 };
-
 
 exports.updateProfile = async (req, res, next) => {
   try {
@@ -99,6 +99,7 @@ exports.getProfileDetails = async (req, res, next) => {
     }
 
     const userId = req.user.id;
+    console.log("USer ID: ", userId);
     // Fetch profile details from the database
     const profile = await UserProfile.findOne({ user: userId });
 
@@ -114,11 +115,17 @@ exports.getProfileDetails = async (req, res, next) => {
   }
 };
 
-exports.updateVisibility = async (req, res) => {
-  const userId = req.user.id;
-  const { visibility } = req.body;
-
+exports.updateVisibility = async (req, res, next) => {
   try {
+    if (!req.user || !req.user.id) {
+      const error = new Error("User ID is missing");
+      error.status = 400; // Bad Request
+      return next(error); // Pass the error to the error handling middleware
+    }
+
+    const userId = req.user.id;
+    const { visibility } = req.body;
+
     const profile = await UserProfile.findOne({ user: userId });
 
     if (!profile) {
@@ -144,25 +151,38 @@ exports.updateVisibility = async (req, res) => {
   }
 };
 
-exports.getVisibilityStatus = async (req, res) => {
-  const userId = req.user.id;
 
+exports.getVisibilityStatus = async (req, res, next) => {
   try {
+    // Determine the user ID from req.user or query parameters
+    const userId = req.user?.id || req.query.id || req.params.id;
+
+    //console.log("USER ID: ", userId);
+
+    // Check if a user ID is available
+    if (!userId) {
+      const error = new Error("User ID is missing");
+      error.status = 400; // Bad Request
+      return next(error); // Pass the error to the error handling middleware
+    }
+
+    // Fetch the user profile using the user ID
     const profile = await UserProfile.findOne({ user: userId });
 
+    // Handle case where profile is not found
     if (!profile) {
       return res.status(404).json({ message: "Profile not found" });
     }
 
+    // Return the visibility status
     res.status(200).json({ visibility: profile.visibility });
   } catch (error) {
-    res
-      .status(500)
-      .json({ message: "Error fetching visibility status", error });
+    // Handle any other errors
+    res.status(500).json({ message: "Error fetching visibility status", error });
   }
 };
 
-exports.getProfiles = async (req, res) => {
+exports.getProfiles = async (req, res, next) => {
   const { visibility, experience, skills } = req.query;
 
   try {

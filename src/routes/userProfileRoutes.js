@@ -2,28 +2,28 @@ const express = require('express');
 const userProfileController = require('../controllers/userProfileController');
 const router = express.Router();
 
-// POST /profiles - Create a new profile
-router.post('/profile', userProfileController.createProfile);
+// POST profiles - Create a new profile
+router.post('/', userProfileController.createProfile);
 
 // Update user profile
-router.put('/profile', userProfileController.updateProfile);
+router.put('/', userProfileController.updateProfile);
 
 // Get user profile details
-router.get('/profile', userProfileController.getProfileDetails);
+router.get('/', userProfileController.getProfileDetails);
 
 // Update visibility status
-router.put('/profile/visibility', userProfileController.updateVisibility);
+router.put('/visibility', userProfileController.updateVisibility);
 
 // Get visibility status
-router.get('/profile/visibility', userProfileController.getVisibilityStatus);
+router.get('/visibility', userProfileController.getVisibilityStatus);
 
 // Get profiles by criteria
-router.get('/profiles', userProfileController.getProfiles);
+router.get('/', userProfileController.getProfiles);
 
 // Get profile by ID
-router.get('/profile/:id', userProfileController.getProfileById);
+router.get('/:id', userProfileController.getProfileById);
 
 // Discard a profile
-router.post('/profile/:id/discard', userProfileController.discardProfile);
+router.post('/:id/discard', userProfileController.discardProfile);
 
 module.exports = router;
