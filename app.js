@@ -3,6 +3,7 @@ const bodyParser = require('body-parser');
 const cors = require('cors');
 const userProfileRoutes = require('./src/routes/userProfileRoutes');
 const friendshipRoutes = require('./src/routes/friendshipRoutes');
+const authRoutes = require('./src/routes/authRoutes');
 
 const app = express();
 
@@ -11,6 +12,7 @@ app.use(cors());
 app.use(bodyParser.json());
 
 // Routes
+app.use('/api/auth', authRoutes);	 
 app.use('/api/profile', userProfileRoutes);
 app.use('/api/friendship', friendshipRoutes);
 
